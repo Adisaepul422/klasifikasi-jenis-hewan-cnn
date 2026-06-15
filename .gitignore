@@ -1,0 +1,14 @@
+# Dataset (terlalu besar, jangan upload)
+raw-img/
+dataset/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# File sementara
+.DS_Store
+*.log
+
+# Model backup (optional)
+models/*.hdf5

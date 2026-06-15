@@ -132,31 +132,23 @@ print("MEMBANGUN MODEL CNN...")
 print("="*50)
 
 model = models.Sequential([
-    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 3)),
-    layers.BatchNormalization(),
+    layers.Conv2D(16, (3, 3), activation='relu', input_shape=(150, 150, 3)),
+    layers.MaxPooling2D((2, 2)),
+    
+    layers.Conv2D(32, (3, 3), activation='relu'),
     layers.MaxPooling2D((2, 2)),
     
     layers.Conv2D(64, (3, 3), activation='relu'),
-    layers.BatchNormalization(),
-    layers.MaxPooling2D((2, 2)),
-    
-    layers.Conv2D(128, (3, 3), activation='relu'),
-    layers.BatchNormalization(),
-    layers.MaxPooling2D((2, 2)),
-    
-    layers.Conv2D(256, (3, 3), activation='relu'),
-    layers.BatchNormalization(),
     layers.MaxPooling2D((2, 2)),
     
     layers.Flatten(),
-    layers.Dense(512, activation='relu'),
+    layers.Dense(128, activation='relu'),
     layers.Dropout(0.5),
-    layers.Dense(256, activation='relu'),
-    layers.Dropout(0.3),
     layers.Dense(len(CLASS_NAMES), activation='softmax')
 ])
 
-model.summary()
+# Simpan model dengan kompresi
+model.save('models/model_hewan_cnn.h5', save_format='h5', include_optimizer=False)
 
 # ===================== KOMPILASI MODEL =====================
 model.compile(

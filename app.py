@@ -43,11 +43,24 @@ CLASS_INFO = {
 # Load model CNN
 def load_cnn_model():
     try:
-        model = load_model('models/model_hewan_cnn.h5')
-        print("✅ Model berhasil dimuat!")
-        return model
+        # Coba beberapa kemungkinan path
+        possible_paths = [
+            'models/model_hewan_cnn.h5',
+            '/app/models/model_hewan_cnn.h5',
+            os.path.join(os.path.dirname(__file__), 'models', 'model_hewan_cnn.h5')
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                print(f"✅ Model ditemukan di: {path}")
+                model = load_model(path)
+                return model
+        
+        print("❌ Model tidak ditemukan di path manapun")
+        return None
+        
     except Exception as e:
-        print(f"❌ Gagal memuat model: {e}")
+        print(f"❌ Error loading model: {e}")
         return None
 
 model = load_cnn_model()
