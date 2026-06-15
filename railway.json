@@ -1,9 +1,11 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pip install -r requirements.txt && python download_model.py"
+    "buildCommand": "pip install -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "gunicorn app:app"
+    "startCommand": "gunicorn --timeout 120 --bind 0.0.0.0:$PORT app:app",
+    "restartPolicyType": "ON_FAILURE",
+    "healthcheckPath": "/health"
   }
 }

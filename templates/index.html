@@ -66,6 +66,11 @@
             color: white;
             margin-top: 30px;
         }
+        #selected-filename {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #28a745;
+        }
     </style>
 </head>
 <body>
@@ -82,13 +87,13 @@
                     </div>
                     
                     <div class="card-body p-4">
-                        <!-- Form Upload -->
+                        <!-- Form Upload - PERBAIKAN DISINI -->
                         <form action="/predict" method="post" enctype="multipart/form-data" id="uploadForm">
                             <div class="upload-area" id="uploadArea">
                                 <i class="fas fa-cloud-upload-alt fa-3x mb-3" style="color: #667eea;"></i>
                                 <h5>Klik atau drag & drop gambar disini</h5>
                                 <p class="text-muted">Format: JPG, PNG, JPEG (Maks 16MB)</p>
-                                <input type="file" name="file" id="fileInput" accept="image/*" style="display: none;">
+                                <input type="file" name="file" id="fileInput" accept="image/*" style="display: none;" required>
                                 <button type="button" class="btn btn-outline-primary mt-2" onclick="document.getElementById('fileInput').click()">
                                     <i class="fas fa-folder-open"></i> Pilih Gambar
                                 </button>
@@ -98,10 +103,11 @@
                             <div id="previewContainer" class="mt-4" style="display: none;">
                                 <h5>Preview Gambar:</h5>
                                 <img id="previewImage" src="#" alt="Preview" class="img-fluid rounded" style="max-height: 300px;">
+                                <p id="selected-filename" class="text-success mt-2"></p>
                             </div>
                             
                             <div class="text-center mt-4">
-                                <button type="submit" class="btn btn-predict text-white">
+                                <button type="submit" class="btn btn-predict text-white" id="submitBtn">
                                     <i class="fas fa-microchip"></i> Identifikasi Hewan
                                 </button>
                             </div>
@@ -120,13 +126,18 @@
                         <h5 class="text-center mb-3">
                             <i class="fas fa-tags"></i> Jenis Hewan yang Dapat Diidentifikasi:
                         </h5>
-                        <div class="text-center">
-                            {% for class_name in class_names %}
-                            <span class="class-badge">
-                                {{ class_info[class_name]['icon'] if class_info[class_name] else '🐾' }} 
-                                {{ class_name }}
-                            </span>
-                            {% endfor %}
+                        <div class="text-center" id="class-list">
+                            <!-- Akan diisi dengan JavaScript atau dari server -->
+                            <span class="class-badge">🐕 Anjing</span>
+                            <span class="class-badge">🐈 Kucing</span>
+                            <span class="class-badge">🐦 Burung</span>
+                            <span class="class-badge">🐘 Gajah</span>
+                            <span class="class-badge">🦋 Kupu-kupu</span>
+                            <span class="class-badge">🐔 Ayam</span>
+                            <span class="class-badge">🐄 Sapi</span>
+                            <span class="class-badge">🐑 Domba</span>
+                            <span class="class-badge">🕷️ Laba-laba</span>
+                            <span class="class-badge">🐿️ Tupai</span>
                         </div>
                     </div>
                 </div>
@@ -142,12 +153,14 @@
     </div>
     
     <script>
-        // Upload area click
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const previewContainer = document.getElementById('previewContainer');
         const previewImage = document.getElementById('previewImage');
+        const selectedFilename = document.getElementById('selected-filename');
+        const submitBtn = document.getElementById('submitBtn');
         
+        // Upload area click
         uploadArea.addEventListener('click', () => {
             fileInput.click();
         });
@@ -155,12 +168,29 @@
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                // Validasi tipe file
+                if (!file.type.startsWith('image/')) {
+                    alert('File harus berupa gambar!');
+                    fileInput.value = '';
+                    return;
+                }
+                
+                // Validasi ukuran (max 16MB)
+                if (file.size > 16 * 1024 * 1024) {
+                    alert('Ukuran file terlalu besar! Maksimal 16MB.');
+                    fileInput.value = '';
+                    return;
+                }
+                
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     previewImage.src = event.target.result;
                     previewContainer.style.display = 'block';
+                    selectedFilename.textContent = `📁 ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
                 }
                 reader.readAsDataURL(file);
+            } else {
+                previewContainer.style.display = 'none';
             }
         });
         
@@ -182,15 +212,26 @@
             const file = e.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
                 fileInput.files = e.dataTransfer.files;
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    previewImage.src = event.target.result;
-                    previewContainer.style.display = 'block';
-                }
-                reader.readAsDataURL(file);
+                // Trigger change event
+                const changeEvent = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(changeEvent);
             }
             uploadArea.style.borderColor = '#dee2e6';
             uploadArea.style.backgroundColor = 'transparent';
+        });
+        
+        // Validasi sebelum submit
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Silakan pilih gambar terlebih dahulu!');
+                return false;
+            }
+            
+            // Tampilkan loading
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+            submitBtn.disabled = true;
+            return true;
         });
     </script>
 </body>
