@@ -54,28 +54,49 @@ def load_cnn_model():
     global model
     
     try:
-        # Cek current working directory
-        logger.info(f"Current working directory: {os.getcwd()}")
+        # Log semua informasi
+        print("="*50)
+        print("DEBUGGING MODEL LOAD")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Files in root: {os.listdir('.')}")
         
-        # Coba beberapa kemungkinan path
+        # Cek folder models
+        if os.path.exists('models'):
+            print(f"models folder exists. Contents: {os.listdir('models')}")
+        else:
+            print("models folder NOT FOUND!")
+        
+        # Coba cari file .h5 di seluruh folder
+        print("\nSearching for .h5 files...")
+        for root, dirs, files in os.walk('.'):
+            for file in files:
+                if file.endswith('.h5'):
+                    print(f"Found: {os.path.join(root, file)}")
+        
+        print("="*50)
+        
+        # Path yang dicoba
         possible_paths = [
             'models/model_hewan_cnn.h5',
+            './models/model_hewan_cnn.h5',
             os.path.join(os.path.dirname(__file__), 'models', 'model_hewan_cnn.h5'),
-            '/app/models/model_hewan_cnn.h5',
         ]
         
         for path in possible_paths:
+            print(f"Checking path: {path}")
             if os.path.exists(path):
-                logger.info(f"✅ Model ditemukan di: {path}")
+                print(f"✅ Model ditemukan di: {path}")
                 model = load_model(path, compile=False)
-                logger.info("✅ Model berhasil dimuat!")
+                print("✅ Model berhasil dimuat!")
                 return model
+            else:
+                print(f"❌ Path not found: {path}")
         
-        logger.error("❌ Model tidak ditemukan")
+        print("❌ Model tidak ditemukan")
         return None
         
     except Exception as e:
-        logger.error(f"❌ Error loading model: {e}")
+        print(f"❌ Error loading model: {e}")
         return None
 
 # Fungsi pengecekan file yang diizinkan
