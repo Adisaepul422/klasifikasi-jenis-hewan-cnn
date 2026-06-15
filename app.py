@@ -1,0 +1,173 @@
+"""
+app.py
+Aplikasi web untuk klasifikasi jenis hewan menggunakan CNN
+"""
+
+import os
+import numpy as np
+from flask import Flask, render_template, request, jsonify, url_for
+from werkzeug.utils import secure_filename
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+import uuid
+
+# Inisialisasi Flask
+app = Flask(__name__)
+
+# Konfigurasi
+app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Maks 16MB
+
+# Ekstensi file yang diizinkan
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Nama kelas (harus SAMA URUTANNYA dengan saat training)
+CLASS_NAMES = ['Anjing', 'Ayam', 'Burung', 'Domba', 'Gajah', 
+               'Kucing', 'Kupu', 'Laba', 'Sapi', 'Tupai']
+
+# Info tambahan untuk setiap kelas (opsional, untuk tampilan lebih menarik)
+CLASS_INFO = {
+    'Anjing': {'icon': '🐕', 'desc': 'Hewan peliharaan yang setia'},
+    'Kucing': {'icon': '🐈', 'desc': 'Hewan peliharaan yang lucu'},
+    'Burung': {'icon': '🐦', 'desc': 'Hewan yang bisa terbang'},
+    'Gajah': {'icon': '🐘', 'desc': 'Hewan darat terbesar'},
+    'Kupu': {'icon': '🦋', 'desc': 'Serangga dengan sayap indah'},
+    'Ayam': {'icon': '🐔', 'desc': 'Hewan ternak penghasil telur'},
+    'Sapi': {'icon': '🐄', 'desc': 'Hewan ternak penghasil susu'},
+    'Domba': {'icon': '🐑', 'desc': 'Hewan ternak penghasil wol'},
+    'Laba': {'icon': '🕷️', 'desc': 'Serangga pembuat jaring'},
+    'Tupai': {'icon': '🐿️', 'desc': 'Hewan pemanjat yang lincah'}
+}
+
+# Load model CNN
+def load_cnn_model():
+    try:
+        model = load_model('models/model_hewan_cnn.h5')
+        print("✅ Model berhasil dimuat!")
+        return model
+    except Exception as e:
+        print(f"❌ Gagal memuat model: {e}")
+        return None
+
+model = load_cnn_model()
+
+# Fungsi pengecekan file yang diizinkan
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Fungsi prediksi gambar
+def predict_image(img_path):
+    """
+    Menerima path gambar, mengembalikan hasil prediksi
+    """
+    if model is None:
+        return None, None, None
+    
+    # Load dan preprocess gambar
+    img = image.load_img(img_path, target_size=(150, 150))
+    img_array = image.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = img_array / 255.0  # Normalisasi
+    
+    # Prediksi
+    predictions = model.predict(img_array)
+    predicted_idx = np.argmax(predictions[0])
+    confidence = np.max(predictions[0])
+    
+    predicted_class = CLASS_NAMES[predicted_idx]
+    
+    return predicted_class, confidence, predictions[0]
+
+# ===================== ROUTES =====================
+
+@app.route('/')
+def index():
+    """Halaman utama"""
+    return render_template('index.html', class_names=CLASS_NAMES, class_info=CLASS_INFO)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    """Endpoint untuk prediksi gambar yang diupload"""
+    
+    # Cek apakah ada file yang diupload
+    if 'file' not in request.files:
+        return render_template('index.html', error='Tidak ada file yang dipilih', 
+                              class_names=CLASS_NAMES, class_info=CLASS_INFO)
+    
+    file = request.files['file']
+    
+    # Cek apakah file kosong
+    if file.filename == '':
+        return render_template('index.html', error='File kosong, pilih gambar terlebih dahulu',
+                              class_names=CLASS_NAMES, class_info=CLASS_INFO)
+    
+    # Cek ekstensi file
+    if not allowed_file(file.filename):
+        return render_template('index.html', error='Format file tidak didukung. Gunakan: png, jpg, jpeg, gif',
+                              class_names=CLASS_NAMES, class_info=CLASS_INFO)
+    
+    # Simpan file
+    try:
+        # Buat nama file unik
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # Pastikan folder uploads ada
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
+        file.save(filepath)
+        
+        # Lakukan prediksi
+        predicted_class, confidence, all_probs = predict_image(filepath)
+        
+        if predicted_class is None:
+            return render_template('index.html', error='Model belum dimuat. Silakan coba lagi.',
+                                  class_names=CLASS_NAMES, class_info=CLASS_INFO)
+        
+        # Siapkan probabilitas untuk setiap kelas
+        probabilities = {}
+        for i, class_name in enumerate(CLASS_NAMES):
+            probabilities[class_name] = float(all_probs[i])
+        
+        return render_template('result.html', 
+                             filename=filename,
+                             filepath=filepath,
+                             predicted_class=predicted_class,
+                             confidence=round(confidence * 100, 2),
+                             probabilities=probabilities,
+                             class_info=CLASS_INFO)
+    
+    except Exception as e:
+        print(f"Error: {e}")
+        return render_template('index.html', error=f'Terjadi kesalahan: {str(e)}',
+                              class_names=CLASS_NAMES, class_info=CLASS_INFO)
+
+@app.route('/about')
+def about():
+    """Halaman tentang aplikasi"""
+    return render_template('about.html')
+
+@app.route('/clear')
+def clear():
+    """Membersihkan file upload (opsional)"""
+    import shutil
+    folder = app.config['UPLOAD_FOLDER']
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(f"Gagal menghapus {file_path}: {e}")
+    return "Upload folder cleared"
+
+# ===================== MAIN =====================
+if __name__ == '__main__':
+    # Buat folder yang diperlukan
+    os.makedirs('static/uploads', exist_ok=True)
+    os.makedirs('static/css', exist_ok=True)
+    
+    # Jalankan aplikasi
+    app.run(debug=True, host='0.0.0.0', port=5000)
